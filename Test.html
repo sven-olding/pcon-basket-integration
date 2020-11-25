@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta charset="utf-8" />
+
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        padding: 0px;
+        margin: 0px;
+      }
+
+      #basketFrame {
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- load dependencies -->
+    <script
+      src="https://integration.basket.pcon-solutions.com/v2.3/libs/wcf/libs/core-js/minified.js"
+      type="text/javascript"
+    ></script>
+
+    <script src="basket-integration.js" type="text/javascript"></script>
+
+    <!-- load EAIWS API -->
+    <script
+      src="https://integration.basket.pcon-solutions.com/v2.3/libs/wcf/scripts/utils.min.js"
+      type="text/javascript"
+    ></script>
+    <script
+      src="https://integration.basket.pcon-solutions.com/v2.3/libs/wcf/scripts/eaiws.min.js"
+      type="text/javascript"
+    ></script>
+
+    <!--load basket inside iframe with integration mode -->
+    <iframe
+      id="basketFrame"
+      src="https://integration.basket.pcon-solutions.com/v2.3/?mode=integration"
+    ></iframe>
+
+    <script type="text/javascript">
+      //get basket window for message communication
+      let tIFrame = document.getElementById("basketFrame");
+      let tBasketWindow = tIFrame.contentWindow;
+
+      //create session object
+      let tSession = new egr.wcf.eaiws.EaiwsSession();
+
+      //register message handler to receive messages from basket
+      window.addEventListener("message", function (pEvent) {
+        //check if message is coming from basket
+        if (pEvent.source !== tBasketWindow) return;
+        handleMessage(pEvent.data);
+      });
+
+      function handleMessage(pMessage) {
+        console.dir(pMessage);
+
+        //basket requested the configuration, prepare configuration and send it to basket
+        if (pMessage.type === "wbkHost.getConfiguration") {
+          console.log("Basket version: " + pMessage.parameter.appVersion);
+          console.log(
+            "Api version: " +
+              pMessage.parameter.messageApiVersion.major +
+              "." +
+              pMessage.parameter.messageApiVersion.minor
+          );
+          prepareConfiguration();
+        }
+
+        //editing is finished
+        if (pMessage.type === "wbkHost.done") {
+          //close/hide basket
+          tIFrame.src = "";
+          tIFrame.style.display = "none";
+
+          printAllItemsAndCloseSession();
+        }
+      }
+
+      function prepareConfiguration() {
+        //option1: create session using gatekeeper, see gatekeeper documentation: https://eaiws-server.pcon-solutions.com/doc/v2
+        let tGatekeeperId = "wbk_demo";
+        let tPConLoginToken = undefined;
+        connectToGatekeeper(tGatekeeperId, tPConLoginToken).then(function () {
+          sendConfigurationMessage();
+        });
+
+        //option2: create session using eaiws baseurl and startup
+        /*tSession.open("https://ipa-eaiws2.easterngraphics.com", {startup: "__egr_ANY_b394e623c0458b6797f4f04369c2f8f2a28939e8"}).then(function() {
+                      sendConfigurationMessage();
+                  });*/
+      }
+
+      function connectToGatekeeper(gatekeeperId, pConLoginToken) {
+        let tOptions = {
+          accessToken: pConLoginToken,
+        };
+        let tPromise = egr.wcf.utils.async
+          .ajax(
+            "POST",
+            "https://eaiws-server.pcon-solutions.com/v2/session/" +
+              gatekeeperId,
+            tOptions,
+            {
+              dataType: "json",
+              retryAttempts: 0,
+              timeout: 10000,
+            }
+          )
+          .then(function (pResponse) {
+            tSession.connect(
+              pResponse.server,
+              pResponse.sessionId,
+              pResponse.keepAliveInterval * 1000
+            );
+          })
+          .catch(function (pError) {
+            console.log(
+              "Failed to start gatekeeper session, using fallback server: " +
+                pError
+            );
+            return connectToFallbackGatekeeper(gatekeeperId, pConLoginToken);
+          });
+
+        return tPromise;
+      }
+
+      function connectToFallbackGatekeeper(gatekeeperId, pConLoginToken) {
+        let tOptions = {
+          accessToken: pConLoginToken,
+        };
+        let tPromise = egr.wcf.utils.async
+          .ajax(
+            "POST",
+            "https://eaiws-server-fallback.pcon-solutions.com/v2/session/" +
+              gatekeeperId,
+            tOptions,
+            {
+              dataType: "json",
+            }
+          )
+          .then(function (pResponse) {
+            tSession.connect(
+              pResponse.server,
+              pResponse.sessionId,
+              pResponse.keepAliveInterval * 1000
+            );
+          });
+        return tPromise;
+      }
+
+      function sendConfigurationMessage() {
+        let tMessage = {
+          type: "wbk.configuration",
+          parameter: {
+            application: {
+              theme: {
+                //use custom application colors
+                primaryColor: "#00A000",
+                appBarColor: "#505050",
+              },
+              showUser: true,
+            },
+            user: {
+              name: "user@example.com",
+              fullName: "Example User",
+            },
+            eaiws: {
+              baseUrl: tSession.baseUrl,
+              sessionId: tSession.session.sessionId,
+              keepAliveInterval: 0, //disable keep alive, its already handled on our side
+            },
+            project: {
+              title: "TITEL",
+              titleEditable: true,
+              applySessionDefaults: true, //start new project
+            },
+            /* calculation: {
+              pricingProcedure: "STDB2B_ASSMANN_3",
+            },*/
+          },
+        };
+
+        tSession.project.setProjectData(getProjectData());
+        tSession.project.setAddressData(getAddressData());
+
+        tBasketWindow.postMessage(tMessage, "*");
+      }
+
+      function printAllItemsAndCloseSession() {
+        tSession.project.getAddressData().then(function (addrData) {
+          console.log("address data:");
+          console.log(addrData);
+        });
+
+        tSession.project.getProjectData().then(function (data) {
+          console.log("project data");
+          console.log(data);
+        });
+
+        tSession.basket.getAllItems().then(function (pItems) {
+          for (var i = 0; i < pItems.length; ++i) {
+            var tDiv = document.createElement("div");
+            tDiv.innerText = i + " " + pItems[i].label;
+            document.body.appendChild(tDiv);
+          }
+
+          //close the session
+          tSession.close();
+          document.body.innerHTML += "<div>### session closed ###</div>";
+        });
+      }
+    </script>
+  </body>
+</html>
