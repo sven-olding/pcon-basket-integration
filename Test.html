@@ -50,11 +50,11 @@
 
     <script type="text/javascript">
       //get basket window for message communication
-      let tIFrame = document.getElementById("basketFrame");
-      let tBasketWindow = tIFrame.contentWindow;
+      const tIFrame = document.getElementById("basketFrame");
+      const tBasketWindow = tIFrame.contentWindow;
 
       //create session object
-      let tSession = new egr.wcf.eaiws.EaiwsSession();
+      const tSession = new egr.wcf.eaiws.EaiwsSession();
 
       //register message handler to receive messages from basket
       window.addEventListener("message", function (pEvent) {
@@ -93,6 +93,7 @@
         let tGatekeeperId = "wbk_demo";
         let tPConLoginToken = undefined;
         connectToGatekeeper(tGatekeeperId, tPConLoginToken).then(function () {
+          sendDefaultValues();
           sendConfigurationMessage();
         });
 
@@ -161,7 +162,7 @@
       }
 
       function sendConfigurationMessage() {
-        let tMessage = {
+        const tMessage = {
           type: "wbk.configuration",
           parameter: {
             application: {
@@ -191,7 +192,10 @@
             },*/
           },
         };
+        tBasketWindow.postMessage(tMessage, "*");
+      }
 
+      function sendDefaultValues() {
         let pd = new egr.wcf.eaiws.project.ProjectData();
         Object.assign(pd, getProjectData());
         tSession.project.setProjectData(pd);
@@ -201,20 +205,18 @@
         Object.assign(cd, getContactData());
 
         let commAddrArray = new Array();
-        let commDataObjArr = getCommunicationData();
+        const commDataObjArr = getCommunicationData();
         for (let i = 0; i < commDataObjArr.length; i++) {
           let comd = new egr.wcf.eaiws.project.CommAddress();
           Object.assign(comd, commDataObjArr[i]);
           commAddrArray.push(comd);
         }
         cd.commAddresses = commAddrArray;
-        let contacts = new Array(cd);
+        const contacts = new Array(cd);
         Object.assign(ad, getAddressData());
         ad.contacts = contacts;
 
         tSession.project.setAddressData(ad);
-
-        tBasketWindow.postMessage(tMessage, "*");
       }
 
       function printAllItemsAndCloseSession() {
