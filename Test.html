@@ -20,6 +20,7 @@
         display: block;
       }
     </style>
+    <script src="basket-integration.js"></script>
   </head>
 
   <body>
@@ -191,8 +192,27 @@
           },
         };
 
-        tSession.project.setProjectData(getProjectData());
-        tSession.project.setAddressData(getAddressData());
+        let pd = new egr.wcf.eaiws.project.ProjectData();
+        Object.assign(pd, getProjectData());
+        tSession.project.setProjectData(pd);
+
+        let ad = new egr.wcf.eaiws.project.AddressData();
+        let cd = new egr.wcf.eaiws.project.ContactData();
+        Object.assign(cd, getContactData());
+
+        let commAddrArray = new Array();
+        let commDataObjArr = getCommunicationData();
+        for (let i = 0; i < commDataObjArr.length; i++) {
+          let comd = new egr.wcf.eaiws.project.CommAddress();
+          Object.assign(comd, commDataObjArr[i]);
+          commAddrArray.push(comd);
+        }
+        cd.commAddresses = commAddrArray;
+        let contacts = new Array(cd);
+        Object.assign(ad, getAddressData());
+        ad.contacts = contacts;
+
+        tSession.project.setAddressData(ad);
 
         tBasketWindow.postMessage(tMessage, "*");
       }
