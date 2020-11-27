@@ -18,6 +18,30 @@ getAddressData = () => {
   return addrData;
 };
 
+getAddressDataInCharge = () => {
+  let addrData = {};
+  addrData.addressType = "InCharge";
+  addrData.name1 = "Lieferant";
+  addrData.street = "Lieferallee 567";
+  return addrData;
+};
+
+getContactDataInCharge = () => {
+  let conData = {};
+  conData.contactType = "Support";
+  conData.firstName = "Frau";
+  conData.lastName = "Sachbearbeiter";
+  return conData;
+};
+
+getCommunicationDataInCharge = () => {
+  let commData = new Array();
+
+  commData.push({ value: "LieferantMail", type: "EMail", scope: "Business" });
+
+  return commData;
+};
+
 getCommunicationData = () => {
   let commData = new Array();
 

@@ -200,20 +200,40 @@
         Object.assign(pd, getProjectData());
         tSession.project.setProjectData(pd);
 
-        let ad = new egr.wcf.eaiws.project.AddressData();
         let cd = new egr.wcf.eaiws.project.ContactData();
         Object.assign(cd, getContactData());
 
         let commAddrArray = new Array();
-        const commDataObjArr = getCommunicationData();
+        let commDataObjArr = getCommunicationData();
         for (let i = 0; i < commDataObjArr.length; i++) {
           let comd = new egr.wcf.eaiws.project.CommAddress();
           Object.assign(comd, commDataObjArr[i]);
           commAddrArray.push(comd);
         }
         cd.commAddresses = commAddrArray;
-        const contacts = new Array(cd);
+
+        let contacts = new Array(cd);
+        let ad = new egr.wcf.eaiws.project.AddressData();
         Object.assign(ad, getAddressData());
+        ad.contacts = contacts;
+
+        tSession.project.setAddressData(ad);
+
+        let userData = new egr.wcf.eaiws.project.ContactData();
+        Object.assign(userData, getContactDataInCharge());
+
+        commAddrArray = new Array();
+        commDataObjArr = getCommunicationDataInCharge();
+        for (let i = 0; i < commDataObjArr.length; i++) {
+          let comd = new egr.wcf.eaiws.project.CommAddress();
+          Object.assign(comd, commDataObjArr[i]);
+          commAddrArray.push(comd);
+        }
+        userData.commAddresses = commAddrArray;
+
+        contacts = new Array(userData);
+        ad = new egr.wcf.eaiws.project.AddressData();
+        Object.assign(ad, getAddressDataInCharge());
         ad.contacts = contacts;
 
         tSession.project.setAddressData(ad);
