@@ -239,28 +239,25 @@
         tSession.project.setAddressData(ad);
       }
 
-      function printAllItemsAndCloseSession() {
-        tSession.project.getAddressData().then(function (addrData) {
-          console.log("address data:");
-          console.log(addrData);
-        });
+      async function printAllItemsAndCloseSession() {
+        const addrData = await tSession.project.getAddressData();
+        console.log("address data:");
+        console.log(addrData);
 
-        tSession.project.getProjectData().then(function (data) {
-          console.log("project data");
-          console.log(data);
-        });
+        const projectData = await tSession.project.getProjectData();
+        console.log("project data");
+        console.log(projectData);
 
-        tSession.basket.getAllItems().then(function (pItems) {
-          for (var i = 0; i < pItems.length; ++i) {
-            var tDiv = document.createElement("div");
-            tDiv.innerText = i + " " + pItems[i].label;
-            document.body.appendChild(tDiv);
-          }
+        const allItems = await tSession.basket.getAllItems();
+        for (var i = 0; i < allItems.length; ++i) {
+          var tDiv = document.createElement("div");
+          tDiv.innerText = i + " " + allItems[i].label;
+          document.body.appendChild(tDiv);
+        }
 
-          //close the session
-          tSession.close();
-          document.body.innerHTML += "<div>### session closed ###</div>";
-        });
+        //close the session
+        tSession.close();
+        document.body.innerHTML += "<div>### session closed ###</div>";
       }
     </script>
   </body>
