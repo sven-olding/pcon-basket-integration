@@ -255,6 +255,37 @@
           document.body.appendChild(tDiv);
         }
 
+        // generate pdf
+        const baseUrl = new URL(tSession.session.url).origin;
+        const reportTemplateName = "pCon_basket_Standard";
+        const requestUrl =
+          baseUrl +
+          "/EAIWS/plugins/Reporter/template/" +
+          reportTemplateName +
+          "/generate";
+        const sessionId = tSession.session.sessionId;
+        const calcScheme = "STDB2B_WBK";
+
+        const postData = {
+          sessionId: sessionId,
+          calculationScheme: calcScheme,
+          preferredImageColumn: "cc080d73-88f4-4bfc-8ec1-e7e2ad30739a",
+          externalRefColumn: "c962203c-7e83-4a2f-8060-acaa4a06c921",
+        };
+        const fetchParams = {
+          headers: {
+            "Content-Type": "application/json; charset=UTF-8",
+          },
+          method: "POST",
+          body: JSON.stringify(postData),
+        };
+        const resp = await fetch(requestUrl, fetchParams);
+        console.log(resp);
+        if (resp && resp.ok) {
+          const pdfUrl = await resp.text();
+          window.open(pdfUrl, "_blank");
+        }
+
         //close the session
         tSession.close();
         document.body.innerHTML += "<div>### session closed ###</div>";
