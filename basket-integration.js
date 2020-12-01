@@ -1,26 +1,38 @@
-var tSession = null;
-var tBasket = null;
-var tIFrame = null;
+var basketSession = null;
+var basketWindow = null;
+var basketFrame = null;
 
-function startBasketIntegration() {
+var obkFile = null;
+
+function startBasketIntegration(file) {
   //get basket window for message communication
-  tIFrame = document.getElementById("basketFrame");
-  tIFrame.src =
+  basketFrame = document.getElementById("basketFrame");
+  basketFrame.src =
     "https://integration.basket.pcon-solutions.com/v2.3/?mode=integration";
-  tBasketWindow = tIFrame.contentWindow;
+  basketFrame.style.position = "fixed";
+  basketFrame.style.top = "0";
+  basketFrame.style.width = "100%";
+  basketFrame.style.height = "100%";
+  basketFrame.style.display = "block";
+
+  basketWindow = basketFrame.contentWindow;
+
+  if (file) {
+    obkFile = file;
+  }
 
   //create session object
-  tSession = new egr.wcf.eaiws.EaiwsSession();
+  basketSession = new egr.wcf.eaiws.EaiwsSession();
 
   //register message handler to receive messages from basket
-  window.addEventListener("message", function (pEvent) {
+  window.addEventListener("message", async function (pEvent) {
     //check if message is coming from basket
-    if (pEvent.source !== tBasketWindow) return;
+    if (pEvent.source !== basketWindow) return;
     handleMessage(pEvent.data);
   });
 }
 
-function handleMessage(pMessage) {
+async function handleMessage(pMessage) {
   console.dir(pMessage);
 
   //basket requested the configuration, prepare configuration and send it to basket
@@ -32,32 +44,41 @@ function handleMessage(pMessage) {
         "." +
         pMessage.parameter.messageApiVersion.minor
     );
-    prepareConfiguration();
+    await prepareConfiguration();
   }
 
   //editing is finished
   if (pMessage.type === "wbkHost.done") {
     //close/hide basket
-    tIFrame.src = "";
-    tIFrame.style.display = "none";
+    basketFrame.src = "";
+    basketFrame.style.display = "none";
 
     printAllItemsAndCloseSession();
   }
 }
 
-function prepareConfiguration() {
+async function prepareConfiguration() {
   //option1: create session using gatekeeper, see gatekeeper documentation: https://eaiws-server.pcon-solutions.com/doc/v2
   let tGatekeeperId = "wbk_demo";
   let tPConLoginToken = undefined;
-  connectToGatekeeper(tGatekeeperId, tPConLoginToken).then(function () {
-    sendDefaultValues();
-    sendConfigurationMessage();
-  });
+  await connectToGatekeeper(tGatekeeperId, tPConLoginToken);
 
-  //option2: create session using eaiws baseurl and startup
-  /*tSession.open("https://ipa-eaiws2.easterngraphics.com", {startup: "__egr_ANY_b394e623c0458b6797f4f04369c2f8f2a28939e8"}).then(function() {
-                      sendConfigurationMessage();
-                  });*/
+  if (!obkFile) {
+    sendDefaultValues();
+  } else {
+    const uploadUrl = await basketSession.session.getUploadURL("Project");
+    const data = { method: "PUT", body: obkFile };
+
+    const resp = await fetch(uploadUrl, data);
+    console.log(resp);
+
+    const loadSessionResult = await basketSession.session.loadSession(
+      uploadUrl
+    );
+    console.log("load session result");
+    console.log(loadSessionResult);
+  }
+  sendConfigurationMessage();
 }
 
 function connectToFallbackGatekeeper(gatekeeperId, pConLoginToken) {
@@ -75,7 +96,7 @@ function connectToFallbackGatekeeper(gatekeeperId, pConLoginToken) {
       }
     )
     .then(function (pResponse) {
-      tSession.connect(
+      basketSession.connect(
         pResponse.server,
         pResponse.sessionId,
         pResponse.keepAliveInterval * 1000
@@ -100,7 +121,7 @@ function connectToGatekeeper(gatekeeperId, pConLoginToken) {
       }
     )
     .then(function (pResponse) {
-      tSession.connect(
+      basketSession.connect(
         pResponse.server,
         pResponse.sessionId,
         pResponse.keepAliveInterval * 1000
@@ -117,15 +138,15 @@ function connectToGatekeeper(gatekeeperId, pConLoginToken) {
 }
 
 async function printAllItemsAndCloseSession() {
-  const addrData = await tSession.project.getAddressData();
+  const addrData = await basketSession.project.getAddressData();
   console.log("address data:");
   console.log(addrData);
 
-  const projectData = await tSession.project.getProjectData();
+  const projectData = await basketSession.project.getProjectData();
   console.log("project data");
   console.log(projectData);
 
-  const allItems = await tSession.basket.getAllItems();
+  const allItems = await basketSession.basket.getAllItems();
   for (var i = 0; i < allItems.length; ++i) {
     var tDiv = document.createElement("div");
     tDiv.innerText = i + " " + allItems[i].label;
@@ -133,14 +154,14 @@ async function printAllItemsAndCloseSession() {
   }
 
   // generate pdf
-  const baseUrl = new URL(tSession.session.url).origin;
+  const baseUrl = new URL(basketSession.session.url).origin;
   const reportTemplateName = "pCon_basket_Standard";
   const requestUrl =
     baseUrl +
     "/EAIWS/plugins/Reporter/template/" +
     reportTemplateName +
     "/generate";
-  const sessionId = tSession.session.sessionId;
+  const sessionId = basketSession.session.sessionId;
   const calcScheme = "STDB2B_WBK";
 
   const postData = {
@@ -165,7 +186,7 @@ async function printAllItemsAndCloseSession() {
 
   //close the session
   window.setTimeout(function () {
-    tSession.close();
+    basketSession.close();
   }, 2000);
   document.body.innerHTML += "<div>### session closed ###</div>";
 }
@@ -192,8 +213,8 @@ function sendConfigurationMessage() {
         fullName: "Example User",
       },
       eaiws: {
-        baseUrl: tSession.baseUrl,
-        sessionId: tSession.session.sessionId,
+        baseUrl: basketSession.baseUrl,
+        sessionId: basketSession.session.sessionId,
         keepAliveInterval: 0, //disable keep alive, its already handled on our side
       },
       project: {
@@ -203,12 +224,12 @@ function sendConfigurationMessage() {
       },
     },
   };
-  tBasketWindow.postMessage(tMessage, "*");
+  basketWindow.postMessage(tMessage, "*");
 }
 function sendDefaultValues() {
   let pd = new egr.wcf.eaiws.project.ProjectData();
   Object.assign(pd, getProjectData());
-  tSession.project.setProjectData(pd);
+  basketSession.project.setProjectData(pd);
 
   let cd = new egr.wcf.eaiws.project.ContactData();
   Object.assign(cd, getContactData());
@@ -227,7 +248,7 @@ function sendDefaultValues() {
   Object.assign(ad, getAddressData());
   ad.contacts = contacts;
 
-  tSession.project.setAddressData(ad);
+  basketSession.project.setAddressData(ad);
 
   let userData = new egr.wcf.eaiws.project.ContactData();
   Object.assign(userData, getContactDataInCharge());
@@ -246,7 +267,7 @@ function sendDefaultValues() {
   Object.assign(ad, getAddressDataInCharge());
   ad.contacts = contacts;
 
-  tSession.project.setAddressData(ad);
+  basketSession.project.setAddressData(ad);
 }
 getProjectData = () => {
   let projData = {};
