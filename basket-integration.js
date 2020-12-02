@@ -25,11 +25,12 @@ function startBasketIntegration(file) {
   basketSession = new egr.wcf.eaiws.EaiwsSession();
 
   //register message handler to receive messages from basket
-  window.addEventListener("message", async function (pEvent) {
-    //check if message is coming from basket
-    if (pEvent.source !== basketWindow) return;
-    handleMessage(pEvent.data);
-  });
+  window.addEventListener("message", onMessageReceive);
+}
+async function onMessageReceive(pEvent) {
+  //check if message is coming from basket
+  if (pEvent.source !== basketWindow) return;
+  handleMessage(pEvent.data);
 }
 
 async function handleMessage(pMessage) {
@@ -184,11 +185,16 @@ async function printAllItemsAndCloseSession() {
     window.open(pdfUrl, "_blank");
   }
 
+  const obkUrl = await basketSession.session.saveSession();
+  if (obkUrl) {
+    document.getElementById("downloadFrame").src = obkUrl;
+  }
+
   //close the session
   window.setTimeout(function () {
     basketSession.close();
-  }, 2000);
-  document.body.innerHTML += "<div>### session closed ###</div>";
+    window.removeEventListener("message", onMessageReceive);
+  }, 1000);
 }
 function sendConfigurationMessage() {
   const tMessage = {
