@@ -207,16 +207,16 @@ function sendConfigurationMessage() {
           appBarColor: "#505050",
         },
         showUser: true,
-        userRestrictions: [
+      },
+      user: {
+        name: "user@example.com",
+        fullName: "Example User",
+        restrictions: [
           "project.customer.search.edit",
           "project.data.projectName.edit",
           "project.data.projectNumber.edit",
           "project.partyInCharge.edit",
         ],
-      },
-      user: {
-        name: "user@example.com",
-        fullName: "Example User",
       },
       eaiws: {
         baseUrl: basketSession.baseUrl,
