@@ -274,7 +274,11 @@ function sendDefaultValues() {
   ad.contacts = contacts;
 
   basketSession.project.setAddressData(ad);
+
+  basketSession.project.setProjectText(getHeaderText());
+  basketSession.project.setProjectText(getFooterText());
 }
+
 getProjectData = () => {
   let projData = {};
   projData.company = "FIRMENNAME";
@@ -336,4 +340,32 @@ getContactData = () => {
   conData.firstName = "Vorname";
   conData.lastName = "Nachname";
   return conData;
+};
+
+getHeaderText = () => {
+  return getProjectText("HeaderText");
+};
+
+getFooterText = () => {
+  return getProjectText("FooterText");
+};
+
+getProjectText = (textType) => {
+  let projectText = new egr.wcf.eaiws.project.ProjectText();
+  projectText.type = textType;
+
+  let formattedText = new egr.wcf.eaiws.project.FormattedText();
+  formattedText.format = "XML";
+  formattedText.language = "de";
+  formattedText.value =
+    '<?xml version="1.0" ?><iml><p>' +
+    textType +
+    "<br />" +
+    "<br /><br /><i>bla 2<br />bla 3</i><br />4<br />5<br /><br />----------------------------------------------------------------------------------------------------------------------------------------------" +
+    "</p></iml>";
+
+  projectText.texts = [formattedText];
+
+  console.log(projectText);
+  return projectText;
 };
